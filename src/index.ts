@@ -1,11 +1,12 @@
 import { WebSocketServer, WebSocket } from "ws";
 
-const ws = new WebSocketServer({ port: 8080 });
+const ws = new WebSocketServer({ host: "0.0.0.0", port: 8080 });
 
 interface User {
   socket: WebSocket;
   room: string;
   userId: string;
+  username: string
 }
 
 let allSockets: User[] = [];
@@ -18,10 +19,11 @@ ws.on("connection", (socket) => {
 
     if (parsedMessage.type === "join") {
       const roomId = parsedMessage.payload.roomId;
+      const username = parsedMessage.payload.username;
       userId = `user_${Date.now()}`
 
       // Add user to the list
-      allSockets.push({ socket, room: roomId, userId});
+      allSockets.push({ socket, room: roomId, userId, username});
 
       // Update room count
       roomCounts[roomId] = (roomCounts[roomId] || 0) + 1;
@@ -36,7 +38,7 @@ ws.on("connection", (socket) => {
     if (parsedMessage.type === "chat") {
       const currentUser = allSockets.find((user) => user.socket === socket);
       if (currentUser) {
-        broadcastMessage(currentUser.room, parsedMessage.payload.text, currentUser.userId);
+        broadcastMessage(currentUser.room, parsedMessage.payload.text, currentUser.userId, currentUser.username);
       }
     }
   });
@@ -61,10 +63,10 @@ ws.on("connection", (socket) => {
   });
 });
 
-function broadcastMessage(roomId: string, message: string, userId: string) {
+function broadcastMessage(roomId: string, message: string, userId: string, username: string) {
   allSockets.forEach((user) => {
     if (user.room === roomId && user.userId !== userId) {
-      user.socket.send(JSON.stringify({ type: "chat", message, userId }));
+      user.socket.send(JSON.stringify({ type: "chat", message, userId, username }));
     }
   });
 }
